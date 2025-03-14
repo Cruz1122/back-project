@@ -15,4 +15,4 @@ app.listen(port, () => {
 app.use(bodyParser.json());
 app.use('/api/v1', routes);
 
-connectionDB();
+module.exports = connectionDB();
