@@ -8,7 +8,7 @@ const { PrismaClient } = require("@prisma/client");
 const bcrypt = require("bcrypt");
 const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
-const {signup} = require('../../../src/controllers/AuthController');
+const {signUp} = require('../../../src/controllers/AuthController');
 const {config} = require("dotenv");
 
 jest.mock("@prisma/client", () => {
@@ -33,7 +33,7 @@ jest.mock("bcrypt", () => ({
 // Mock que omite algunos de los console.log del AuthController
 jest.spyOn(console, "log").mockImplementation(() => {});
 
-describe("signup Controller Method", ()=> {
+describe("signUp Controller Method", ()=> {
     let req;
     let res;
     const prismaInstance = new PrismaClient();
@@ -55,7 +55,7 @@ describe("signup Controller Method", ()=> {
             // email y current_password no se enviaron
         };
          // Ejecutamos la prueba
-        await signup(req, res);
+        await signUp(req, res);
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({message:"All required files: fullName, email and password"});
     })
@@ -66,7 +66,7 @@ describe("signup Controller Method", ()=> {
             email: "test.com",
             current_password: "test123",
         };
-        await signup(req, res);
+        await signUp(req, res);
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({message:"Invalid email format."});
     })
@@ -78,7 +78,7 @@ describe("signup Controller Method", ()=> {
             email: "test@test.com",
             current_password: "test1",
         };
-        await signup(req, res);
+        await signUp(req, res);
         expect(res.status).toHaveBeenCalledWith(400);
         expect(res.json).toHaveBeenCalledWith({message:"Password must be at least 6 characters long."});
     })
@@ -93,7 +93,7 @@ describe("signup Controller Method", ()=> {
             id: 1,
             email: "test@test.com"
         });
-        await signup(req, res);
+        await signUp(req, res);
         expect(prismaInstance.users.findUnique).toHaveBeenCalledWith({
             where: {
                 email:"test@test.com"
@@ -122,7 +122,7 @@ describe("signup Controller Method", ()=> {
         }
         prismaInstance.users.create.mockResolvedValue(createUser);
 
-        await signup(req, res);
+        await signUp(req, res);
 
         expect(prismaInstance.users.findUnique).toHaveBeenCalledWith({
             where: {
