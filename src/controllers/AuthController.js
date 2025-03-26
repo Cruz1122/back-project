@@ -1,12 +1,12 @@
 const { PrismaClient } = require("@prisma/client");
 const prisma = new PrismaClient();
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
 require("dotenv").config();
 
 const transporter = nodemailer.createTransport({
-  host: "smtp.ucaldas.edu.co",
+  host: "smtp.gmail.com",
   port: 465,
   secure: true,
   auth: {
