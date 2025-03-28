@@ -18,7 +18,7 @@ jest.mock("@prisma/client", () => ({
 }));
 
 //Mock de la libreria bcrypt
-jest.mock("bcrypt", () => ({
+jest.mock("bcryptjs", () => ({
   hash: jest.fn(),
   compare: jest.fn(),
 }));
@@ -28,8 +28,20 @@ jest.mock("jsonwebtoken", () => ({
   sign: jest.fn().mockReturnValue("test_token"),
 }));
 
+const mockSendMail = jest.fn().mockResolvedValue({
+  response: "250 Message sent",
+});
+
+jest.mock("nodemailer", () => ({
+  createTransport: jest.fn().mockReturnValue({
+    sendMail: mockSendMail,
+  }),
+}));
+
+
+
 const { PrismaClient } = require("@prisma/client");
-const bcrypt = require("bcrypt");
+const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const prisma = new PrismaClient();
 const { signUp, signIn } = require("../../../src/controllers/AuthController");
@@ -127,13 +139,22 @@ describe("signUp Controller Method", () => {
     const hashedPassword = "hashed_password";
     bcrypt.hash.mockResolvedValue(hashedPassword);
 
+    const fixedDate = new Date("2025-03-28T01:55:53.437Z");
+    jest.spyOn(global, "Date").mockImplementation(() => fixedDate);
+
     // Configurar mock para la creación de usuario
     const createdUser = {
       id: 1,
       fullName: "User Test",
       email: "test@test.com",
+      status: "PENDING",
+      verificationCode: "123456",
+      verificationCodeExpires: fixedDate,
     };
     mockCreate.mockResolvedValue(createdUser);
+
+    // Mock para el envío de email
+    mockSendMail.mockResolvedValue({ response: "250 Message sent" });
 
     await signUp(req, res);
 
@@ -146,12 +167,27 @@ describe("signUp Controller Method", () => {
         fullName: "User Test",
         email: "test@test.com",
         current_password: hashedPassword,
+        status: "PENDING",
+        verificationCode: "123456",
+        verificationCodeExpires: fixedDate,
       },
     });
+
+    // Verificar que se intenta enviar un email
+    expect(mockSendMail).toHaveBeenCalledWith(
+      expect.objectContaining({
+        to: "test@test.com",
+        subject: "Código de verificación para tu cuenta",
+        html: expect.stringContaining("123456"),
+      })
+    );
+
     expect(res.status).toHaveBeenCalledWith(201);
     expect(res.json).toHaveBeenCalledWith({
-      message: "User created successfully.",
-      user: createdUser,
+      message:
+        "User registered successfully. Please check your email for the verification code.",
+      userId: 1,
+      email: "test@test.com",
     });
   });
 });
