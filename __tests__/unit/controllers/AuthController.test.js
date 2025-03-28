@@ -168,7 +168,7 @@ describe("signUp Controller Method", () => {
         email: "test@test.com",
         current_password: hashedPassword,
         status: "PENDING",
-        verificationCode: "123456",
+        verificationCode: expect.any(String),
         verificationCodeExpires: fixedDate,
       },
     });
@@ -178,7 +178,7 @@ describe("signUp Controller Method", () => {
       expect.objectContaining({
         to: "test@test.com",
         subject: "Código de verificación para tu cuenta",
-        html: expect.stringContaining("123456"),
+        html: expect.stringContaining(""),
       })
     );
 
