@@ -1,6 +1,6 @@
 # Back Project
 
-Este es el backend del proyecto desarrollado para la materia de Software III.
+Este es el backend del proyecto desarrollado para la materia de Software II.
 
 ## Tecnologías
 
