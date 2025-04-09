@@ -1,4 +1,4 @@
-const { PrismaClient } = require("@prisma/client");
+const { PrismaClient, Role } = require("@prisma/client");
 const prisma = new PrismaClient();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
@@ -394,9 +394,13 @@ const verifySmsLogin = async (req, res) => {
 
     // Generar el token ahora que se verificó
     const token = jwt.sign(
-      { id: findUser.id },
+      { id: findUser.id,
+        role: findUser.role,
+        status: findUser.status,
+       },
       process.env.JWT_SECRET,
       { expiresIn: "2h" }
+
     );
 
     return res.status(200).json({
