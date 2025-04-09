@@ -12,6 +12,9 @@ model Users {
   fullName                String
   email                   String    @unique
   current_password        String
+  phoneNumber             String // <-- nuevo campo para el número de teléfono
+  twoFactorCode           String? // <-- código enviado por SMS
+  twoFactorCodeExpires    DateTime? // <-- vencimiento del código
   role                    Role      @default(EDITOR)
   status                  Status    @default(PENDING)
   verificationCode        String?
