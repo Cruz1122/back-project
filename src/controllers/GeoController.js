@@ -125,6 +125,25 @@ const uploadCsv = async (req, res) => {
   }
 };
 
+const getMunicipiosConDepartamento = async (req, res) => {
+  try {
+    const municipios = await prisma.municipio.findMany({
+      include: {
+        departamento: true,
+      },
+      orderBy: {
+        nombre: "asc",
+      },
+    });
+
+    res.status(200).json({ municipios });
+  } catch (error) {
+    console.error("Error al obtener municipios:", error);
+    res.status(500).json({ error: "Error al obtener los municipios." });
+  }
+};
+
 module.exports = {
   uploadCsv,
+  getMunicipiosConDepartamento,
 };
