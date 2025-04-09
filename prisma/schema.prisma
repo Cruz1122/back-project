@@ -23,6 +23,19 @@ model Users {
   updatedAt               DateTime  @updatedAt
 }
 
+model Departamento {
+  id         String      @id @default(auto()) @map("_id") @db.ObjectId
+  nombre     String      @unique
+  municipios Municipio[] // Relación uno a muchos
+}
+
+model Municipio {
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  nombre         String
+  departamento   Departamento @relation(fields: [departamentoId], references: [id])
+  departamentoId String       @db.ObjectId
+}
+
 enum Role {
   SUPERADMIN
   EDITOR
