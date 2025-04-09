@@ -132,7 +132,9 @@ const getMunicipiosConDepartamento = async (req, res) => {
         departamento: true,
       },
       orderBy: {
-        nombre: "asc",
+        departamento: {
+          nombre: "asc",
+        },
       },
     });
 
@@ -142,6 +144,7 @@ const getMunicipiosConDepartamento = async (req, res) => {
     res.status(500).json({ error: "Error al obtener los municipios." });
   }
 };
+
 
 module.exports = {
   uploadCsv,

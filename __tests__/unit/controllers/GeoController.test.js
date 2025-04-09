@@ -34,7 +34,7 @@ describe("GeoController con mocks", () => {
     jest.clearAllMocks();
   });
 
-  test("Debe insertar departamentos y municipios desde un archivo CSV válido", async () => {
+  test("Insertar departamentos y municipios desde un archivo CSV válido", async () => {
     const filePath = path.join(__dirname, "../data/valid.csv");
 
     const response = await request(app)
