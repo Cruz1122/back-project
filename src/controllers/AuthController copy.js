@@ -3,12 +3,8 @@ const prisma = new PrismaClient();
 const bcrypt = require("bcryptjs");
 const jwt = require("jsonwebtoken");
 const nodemailer = require("nodemailer");
-const twilio = require("twilio");
+const twilio = require('../config/twilioClient');
 require("dotenv").config();
-
-const accountSid = process.env.TWILIO_ACCOUNT_SID;
-const authToken = process.env.TWILIO_AUTH_TOKEN;
-const client = twilio(accountSid, authToken);
 
 const transporter = nodemailer.createTransport({
   host: "smtp.gmail.com",
@@ -55,8 +51,62 @@ const sendVerificationEmail = async (email, code, fullName) => {
   }
 };
 
+const send2FACodeSMS = async (req, res) => {
+  const { email } = req.body;
+
+  try {
+    const findUser = await prisma.users.findUnique({
+      where: {
+        email,
+      },
+    });
+
+    // Verificar si el usuario existe
+    if (!findUser) {
+      return res.status(404).json({
+        message: "Usuario no encontrado.",
+      });
+    }
+
+    if (!findUser.phoneNumber) {
+      return res.status(400).json({
+        message: "El número de teléfono no está registrado.",
+      });
+    }
+
+    const code = generateVerificationCode();
+    const expiration = new Date(Date.now() + 10 * 60 * 1000); // 10 minutos
+
+    // Guardar el código y expiración
+    await prisma.users.update({
+      where: { email },
+      data: {
+        twoFactorCode: code,
+        twoFactorCodeExpires: expiration,
+      },
+    });
+
+    // Enviar el SMS usando Twilio
+    await twilio.messages.create({
+      body: `Hola ${findUser.fullName}, tu código de verificación es: ${code}`,
+      from: process.env.TWILIO_PHONE_NUMBER,
+      to: findUser.phoneNumber,
+    });
+
+    return res.status(200).json({
+      message: "Código enviado por SMS.",
+    });
+
+  } catch (error) {
+    console.error("Error enviando código 2FA por SMS:", error);
+    return res.status(500).json({
+      message: "Error interno al enviar el código.",
+    });
+  }
+};
+
 const signUp = async (req, res) => {
-  let { fullName, email, current_password, phoneNumber } = req.body;
+  let { fullName, email, current_password } = req.body;
   console.log(req.body);
   if (email) {
     email = email.toLowerCase().trim();
@@ -78,16 +128,6 @@ const signUp = async (req, res) => {
       message: "Password must be at least 6 characters long.",
     });
   }
-
-  if (!phoneNumber) {
-    return res.status(400).json({ message: "Phone number is required." });
-  }
-  
-  // Validación muy básica, puedes mejorarla
-  const phoneRegex = /^\+\d{10,15}$/;
-  if (!phoneRegex.test(phoneNumber)) {
-    return res.status(400).json({ message: "Invalid phone number format. Use +[country][number]" });
-  }  
 
   try {
     const existingUser = await prisma.users.findUnique({
@@ -114,7 +154,6 @@ const signUp = async (req, res) => {
         fullName,
         email,
         current_password: hashedPassword,
-        phoneNumber,
         status: "PENDING",
         verificationCode,
         verificationCodeExpires: expirationTime,
@@ -135,8 +174,7 @@ const signUp = async (req, res) => {
     }
 
     res.status(201).json({
-      message:
-        "User registered successfully. Please check your email for the verification code.",
+      message: "User registered successfully. Please check your email for the verification code.",
       userId: user.id,
       email: user.email,
     });
@@ -287,6 +325,7 @@ const resendVerificationCode = async (req, res) => {
 
 const signIn = async (req, res) => {
   let { email, current_password } = req.body;
+  console.log(req.body);
 
   if (email) {
     email = email.toLowerCase().trim();
@@ -310,6 +349,7 @@ const signIn = async (req, res) => {
       },
     });
 
+    // Verify if user exists
     if (!findUser) {
       return res.status(404).json({
         message: "User not found.",
@@ -327,94 +367,29 @@ const signIn = async (req, res) => {
       });
     }
 
-    if (!findUser.phoneNumber) {
-      return res.status(400).json({ message: "Phone number is not registered." });
-    }
-
-    const code = generateVerificationCode();
-    const expiration = new Date(Date.now() + 10 * 60 * 1000); // 10 min
-
-    await prisma.users.update({
-      where: { email },
-      data: {
-        twoFactorCode: code,
-        twoFactorCodeExpires: expiration,
+    const token = jwt.sign(
+      {
+        id: findUser.id,
       },
-    });
-
-    await client.messages.create({
-      body: `Tu código de acceso es: ${code}`,
-      from: process.env.TWILIO_PHONE_NUMBER,
-      to: findUser.phoneNumber,
-    });    
+      process.env.JWT_SECRET,
+      { expiresIn: "2h" }
+    );
+    console.log(token);
 
     return res.status(200).json({
-      message: "Código enviado por SMS. Verifica para continuar.",
-      email: findUser.email,
+      message: "User logged in successfully.",
+      token,
     });
-
   } catch (error) {
     console.log(error);
     return res.status(500).json({ message: "Login failed." });
   }
 };
 
-const verifySmsLogin = async (req, res) => {
-  const { email, code } = req.body;
-
-  try {
-    const findUser = await prisma.users.findUnique({
-      where: {
-        email,
-      },
-    });
-
-    if (!findUser || !findUser.twoFactorCode || !findUser.twoFactorCodeExpires) {
-      return res.status(400).json({
-        message: "Código no solicitado o inválido.",
-      });
-    }
-
-    if (new Date() > findUser.twoFactorCodeExpires) {
-      return res.status(400).json({ message: "El código ha expirado." });
-    }
-
-    if (code !== findUser.twoFactorCode) {
-      return res.status(400).json({ message: "Código incorrecto." });
-    }
-
-    // Limpiar los datos del 2FA
-    await prisma.users.update({
-      where: { email },
-      data: {
-        twoFactorCode: null,
-        twoFactorCodeExpires: null,
-      },
-    });
-
-    // Generar el token ahora que se verificó
-    const token = jwt.sign(
-      { id: findUser.id },
-      process.env.JWT_SECRET,
-      { expiresIn: "2h" }
-    );
-
-    return res.status(200).json({
-      message: "Autenticación por SMS completada con éxito.",
-      token,
-    });
-
-  } catch (error) {
-    console.error("Error verificando 2FA:", error);
-    return res.status(500).json({ message: "Error al verificar código." });
-  }
-};
-
-
 module.exports = {
   signUp,
   signIn,
   verifyCode,
   resendVerificationCode,
-  verifySmsLogin
+  send2FACodeSMS
 };
