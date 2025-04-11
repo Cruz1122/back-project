@@ -25,8 +25,6 @@ const upload = multer({ storage });
 
 // Ruta para cargar CSV
 router.post("/upload-csv", upload.single("file"), uploadCsv);
-
-// ✅ Nueva ruta para obtener municipios con su departamento
 router.get("/municipios", getMunicipiosConDepartamento);
 
 module.exports = router;
